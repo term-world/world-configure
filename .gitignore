@@ -58,3 +58,7 @@ build-iPhoneSimulator/
 # All *.list files
 
 *.list
+
+# .env files
+
+.env
