@@ -1,0 +1,59 @@
+#!/usr/bin/env ruby
+
+require "dotenv"
+require "json"
+
+Dotenv.load
+
+vol = ENV["WORLD_VOLUME"]
+@cap = ENV["DISTRICT_CAP"]
+@path = "/var/lib/docker/volumes/#{vol}/_data"
+
+def count_caps(district)
+  count = Dir.glob("[/a-zA-Z0-9-_]")
+  return @cap.to_i - count.length()
+end
+
+def load_registry
+  begin
+    fh = File.read("#{@path}/.registry")
+    json = JSON.parse(fh)
+  rescue
+    json = { }
+  end
+  return json
+end
+
+def write_registry(json)
+  begin
+    File.write("#{@path}/.registry", JSON.dump(json))
+  rescue
+    puts "Registry write error"
+  end
+end
+
+names = File.open("users.list").readlines.map(&:chomp)
+districts = File.open("districts.list").readlines.map(&:chomp)
+
+# Check if district directories exist, otherwise create them
+directories = Dir.entries("#{@path}")
+
+registry = load_registry
+vacancies = []
+
+districts.each{ |district|
+  `mkdir -p #{@path}/#{district}`
+  if count_caps(district) > 0
+    vacancies.push(district)
+  end
+}
+
+names.each{ |name|
+  if directories.include?(name)
+    choice = vacancies.sample
+    `mv #{@path}/#{name} #{@path}/#{choice}/#{name}`
+    registry["#{name}"] = {"district":"#{choice}"}
+  end
+}
+
+write_registry(registry)
