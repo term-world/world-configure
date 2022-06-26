@@ -41,8 +41,12 @@ directories = Dir.entries("#{@path}")
 registry = load_registry
 vacancies = []
 
+`chown root:docker #{@path}`
+`mkdir -p #{@path}/city`
+`chmod 755 #{@path}/city`
+
 districts.each{ |district|
-  `mkdir -p #{@path}/#{district}`
+  `mkdir -p #{@path}/city/#{district}`
   if count_caps(district) > 0
     vacancies.push(district)
   end
