@@ -7,6 +7,7 @@ Dotenv.load
 
 vol = ENV["WORLD_VOLUME"]
 @cap = ENV["DISTRICT_CAP"]
+@org = ENV["GITHUB_ORG"]
 @path = "/var/lib/docker/volumes/#{vol}/_data"
 
 def count_caps(district)
@@ -32,6 +33,28 @@ def write_registry(json)
   end
 end
 
+def prepare_home(name, district)
+  base_path = "#{@path}/city/#{district}/#{name}"
+  Dir.chdir("#{base_path}")
+  `mkdir -p #{base_path}/house`
+  `chmod 755 #{base_path}/house`
+  `mkdir -p #{base_path}/garage`
+  `chmod 700 #{base_path}/garage`
+  `git init`
+  `git remote add origin https://github.com/term-world/user-home.git`
+  `git pull origin main`
+  `rm -rf .git`
+  Dir.chdir("#{base_path}/house")
+  `git init`
+  `git remote add origin git@github.com/#{@ORG}/#{@HOUSE_REPO}`
+  Dir.chdir("#{base_path}/garage")
+  `git init`
+  `git remote add origin git@github.com/#{@ORG}/#{@GARAGE_REPO}`
+  `rm -rf .git`
+  `rm LICENSE`
+  Dir.chdir("#{@path}")
+end
+
 names = File.open("users.list").readlines.map(&:chomp)
 districts = File.open("districts.list").readlines.map(&:chomp)
 
@@ -45,19 +68,29 @@ vacancies = []
 `mkdir -p #{@path}/city`
 `chmod 755 #{@path}/city`
 
+gid = 2000
+
 districts.each{ |district|
   `mkdir -p #{@path}/city/#{district}`
+  `chmod 755 #{@path}/city/#{district}`
+  `groupadd -g #{gid} #{district}`
   if count_caps(district) > 0
     vacancies.push(district)
   end
+  gid += 1
 }
 
 names.each{ |name|
-  if directories.include?(name)
+  #if directories.include?(name)
     choice = vacancies.sample
-    `mv #{@path}/#{name} #{@path}/#{choice}/#{name}`
-    registry["#{name}"] = {"district":"#{choice}"}
-  end
+    `mkdir -p #{@path}/#{name}`
+    `mv #{@path}/#{name} #{@path}/city/#{choice}/#{name}`
+    registry["#{name}"] = {
+      "district":"#{choice}",
+      "gid":`getent group #{choice} | cut -d: -f3`.strip
+    }
+    prepare_home(name, choice)
+  #end
 }
 
 write_registry(registry)
