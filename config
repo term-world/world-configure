@@ -8,6 +8,9 @@ Dotenv.load
 vol = ENV["WORLD_VOLUME"]
 @cap = ENV["DISTRICT_CAP"]
 @org = ENV["GITHUB_ORG"]
+@house = ENV["HOUSE_REPO"]
+@garage = ENV["GARAGE_REPO"]
+
 @path = "/var/lib/docker/volumes/#{vol}/_data"
 
 def count_caps(district)
@@ -46,10 +49,10 @@ def prepare_home(name, district)
   `rm -rf .git`
   Dir.chdir("#{base_path}/house")
   `git init`
-  `git remote add origin git@github.com/#{@ORG}/#{@HOUSE_REPO}`
+  `git remote add origin git@github.com:#{@org}/#{@house}`
   Dir.chdir("#{base_path}/garage")
   `git init`
-  `git remote add origin git@github.com/#{@ORG}/#{@GARAGE_REPO}`
+  `git remote add origin git@github.com/#{@org}/#{@garage}`
   `rm -rf .git`
   `rm LICENSE`
   Dir.chdir("#{@path}")
