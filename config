@@ -83,18 +83,21 @@ districts.each{ |district|
   gid += 1
 }
 
+uid = 3000
+
 names.each{ |name|
   #if directories.include?(name)
     choice = vacancies.sample
     `mkdir -p #{@path}/#{name}`
     `mv #{@path}/#{name} #{@path}/city/#{choice}/#{name}`
-    `useradd #{name}`
+    `useradd -u #{uid} #{name}`
     registry["#{name}"] = {
       "district":"#{choice}",
       "uid":`id -u #{name}`,
       "gid":`getent group #{choice} | cut -d: -f3`.strip
     }
     prepare_home(name, choice)
+  uid += 1
   #end
 }
 
