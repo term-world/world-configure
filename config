@@ -88,8 +88,10 @@ names.each{ |name|
     choice = vacancies.sample
     `mkdir -p #{@path}/#{name}`
     `mv #{@path}/#{name} #{@path}/city/#{choice}/#{name}`
+    `useradd #{name}`
     registry["#{name}"] = {
       "district":"#{choice}",
+      "uid":`id -u #{name}`,
       "gid":`getent group #{choice} | cut -d: -f3`.strip
     }
     prepare_home(name, choice)
