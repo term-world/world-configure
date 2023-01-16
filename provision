@@ -1,0 +1,130 @@
+#! /bin/bash
+
+################
+##  ENVIRONS  ##
+################
+
+echo "Setting up environment variables from .env..."
+
+if [ -f .env ]
+then
+    export $(cat .env | xargs)
+fi
+
+################
+## CONSTANTS! ##
+################
+
+user_name="$1"
+docker_path="/var/lib/docker/volumes/$WORLD_VOLUME/_data"
+
+################
+## FREE MOBY! ##
+################
+
+echo "Permissioning docker..."
+
+chown root:docker $docker_path
+mkdir -p $docker_path/city
+chmod 755 $docker_path/city
+
+################
+## DISTRICTS! ##
+################
+
+echo "Creating districts..."
+
+gid=3000
+
+for district in $(cat districts.list)
+do
+    mkdir -p $docker_path/city/$district
+    chmod 755 $docker_path/city/$district
+    groupadd -g $gid $district
+    ((gid++))
+done
+
+################
+## NEIGHBORS! ##
+################
+
+echo "Good fences make good neighbors..."
+
+latest_uid=""
+
+for uid in $(cat /etc/passwd | cut -d ":" -f 3 | grep "^2...$" | sort -n)
+do
+    latest_uid=$uid
+done
+
+if [ -z "$latest_uid" ]
+then
+    latest_uid=2000
+else
+    ((latest_uid++))
+fi
+
+echo "Permissioning user folders..."
+
+while IFS="," read -ra USERS
+do
+    username=${USERS[0]}
+    neighborhood=${USERS[1]}
+    useradd -u $latest_uid $username
+    usermod -aG $neighborhood $username
+    chsh -s /bin/bash $username
+    borough=$docker_path/city/$neighborhood
+    echo "Making home dir..."
+    rm -rf $borough/$username/*
+    mkdir -p $borough/$username
+    mkdir -p $borough/$username/house
+    chmod 755 $borough/$username/house
+    mkdir -p $borough/$username/garage
+    chmod 700 $borough/$username/garage
+    usermod -d $borough/$username $username
+    echo "Entering $borough"
+    cd $borough
+    chown root:root $username -R
+    echo "Entering $borough/$username"
+    cd $borough/$username
+    rm -rf .local
+    rm -rf .config
+    rm .bashrc
+    rm .profile
+    rm -rf .git
+    #echo "source /etc/profile.d/world-cmd.sh" >> .bashrc
+    echo "Cloning user-home"
+    #sudo -i -u $username git init
+    #sudo -i -u $username git remote add origin https://github.com/term-world/user-home.git
+    #sudo -i -u $username git pull origin main
+    #sudo -i -u $username rm -rf .git
+    git init
+    git remote add origin https://github.com/term-world/user-home.git
+    git pull origin main
+    rm -rf .git
+    # Fix starting address
+    echo "Entering code-server folder"
+    cd $borough/$username/.local/share/code-server
+    query_folder="{\"query\":{\"folder\":\"/world/city/$neighborhood/$username\"}}"
+    #sudo -i -u $username jq --arg home "$borough/$username" '. += {"query":{"folder":"/world/city/$borough/$username"}}' coder.json >> MOVEME && mv MOVEME coder.json
+    echo "jq $query_folder"
+    echo "$query_folder" | jq -s add >> coder.json
+    echo $(jq -s add coder.json) > coder.json
+    cd $borough/$username/house
+    # Setup the house
+    git init
+    git remote add origin git@github.com:$GITHUB_ORG/house-$username.git
+    echo "Give the home folder back to the user"
+    cd $borough
+    echo "Back to $borough for $username"
+    echo "chown $username:$username $username -R"
+    chown $username:$username $username -R
+    ls -l
+    user_gid=$(getent group $neighborhood | cut -d: -f3)
+    user_uid=$(id -u $username)
+    obj="{\"$username\":{\"district\":\"$neighborhood\", \"gid\":\"$user_gid\", \"uid\":\"$user_uid\"}}"
+    echo "$obj" | jq -s add >> $docker_path/.registry
+    echo $obj
+    ((latest_uid++))
+done <<< $(cat users.list)
+echo $(jq -s add $docker_path/.registry) > $docker_path/.registry
