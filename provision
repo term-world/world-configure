@@ -102,6 +102,7 @@ do
     git remote add origin https://github.com/term-world/user-home.git
     git pull origin main
     rm -rf .git
+    sudo -i -u git config --global init.templatedir '~/.git_template'
     # Fix starting address
     echo "Entering code-server folder"
     cd $borough/$username/.local/share/code-server
